@@ -64,13 +64,23 @@ def run_full_unlock(pci_full: str, gsp_path: str = None) -> bool:
     flr_reset(pci_full)
 
     from unlock.compute import apply_unlock
+    from unlock.vram import apply_vram_unlock
 
     log.info("[%s] Applying compute unlock", pci_full)
-    ok, msg = apply_unlock(pci_full)
-    if ok:
+    ok_compute, msg_compute = apply_unlock(pci_full)
+    if ok_compute:
         log.info("[%s] Compute unlock succeeded", pci_full)
     else:
-        log.warning("[%s] Compute unlock: %s", pci_full, msg)
+        log.warning("[%s] Compute unlock: %s", pci_full, msg_compute)
+
+    log.info("[%s] Applying VRAM unlock", pci_full)
+    ok_vram, msg_vram = apply_vram_unlock(pci_full)
+    if ok_vram:
+        log.info("[%s] VRAM unlock succeeded — %s", pci_full, msg_vram)
+    else:
+        log.warning("[%s] VRAM unlock: %s", pci_full, msg_vram)
+
+    ok = ok_compute and ok_vram
 
     log.info("[%s] Restoring original GSP firmware", pci_full)
     shutil.copy2(backup_path, gsp_path)

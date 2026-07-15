@@ -15,6 +15,34 @@ host_bar0_writes:
     value: 0x00000008
     note: "FEAT_OVR_SM_SPD_1 (IMLA4 override)"
 
+# VRAM (HBM2) memory configuration
+# Source: CMP 170HX VBIOS analysis — https://github.com/jonpry/cmpunlocker
+# Register 0x009A0204 is the HBM2 configuration broadcast written to all 24 FBPAs.
+# Strap byte meaning (per-stack capacity):
+#   0x44 = 2GB  (native on 10GB cards, strap 4)
+#   0x66 = 8GB  (unlock target for 10GB cards → 5×8 = 40GB, stable)
+#   0x77 = 16GB (unlock target for 8GB cards → 5×16 = 80GB, or 10GB cards → 80GB)
+# The register is read-only from host PL0; HS-mode ROP chain writes it during
+# the initial payload. The value persists in the always-on island across FLR.
+vram_config:
+  fb_ctrl:
+    addr: 0x009A0204
+    values:
+      native_10gb: 0x02449000   # strap 4, 2GB/stack × 5 = 10GB
+      native_8gb:  0x02449000   # strap 7, also 2GB/stack on some 8GB cards
+      unlocked_40gb: 0x02669000 # 8GB/stack × 5 = 40GB — stable default for 10GB cards
+      unlocked_80gb: 0x02779000 # 16GB/stack × 5 = 80GB — may need refresh tuning on binned cards
+    default_target: "unlocked_40gb"
+    note: "HBM2 memory configuration broadcast. Modify default_target to choose capacity."
+  # Refresh-interval tuning for 80GB stability on QC-binned cards.
+  # Per the paper, lowering the refresh-interval field of an FB-config register
+  # eliminates memory errors at ~32% throughput cost. Specific address not
+  # disclosed in the public paper; leave null to skip.
+  refresh_interval:
+    addr: null
+    value: null
+    note: "DRAM refresh interval reduction. Set addr/value if reverse-engineered."
+
 booter_addrs:
   bar0_write_gadget: 0x10B9
 

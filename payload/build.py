@@ -5,11 +5,30 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.constants import get
 
-WRITES = [
-    (0x009A0204, 0x02779000),
+# Base writes that run inside the HS-mode ROP chain.
+# The VRAM config write (0x009A0204) is injected from constants.yaml so the
+# target capacity can be changed without editing code.
+_BASE_WRITES = [
     (0x00100CE0, 0x0000020B),
     (0x00823804, 0xFFFFFFFF),
 ]
+
+
+def _get_writes() -> list:
+    """Assemble the BAR0 writes for the ROP payload.
+
+    The first write sets the HBM2 memory configuration broadcast register.
+    The target capacity is read from constants.yaml (vram_config.default_target).
+    """
+    vram_addr = get('vram_config.fb_ctrl.addr')
+    vram_target_key = get('vram_config.fb_ctrl.default_target', 'unlocked_40gb')
+    vram_value = get(f'vram_config.fb_ctrl.values.{vram_target_key}')
+
+    writes = []
+    if vram_addr is not None and vram_value is not None:
+        writes.append((vram_addr, vram_value))
+    writes.extend(_BASE_WRITES)
+    return writes
 
 
 def build() -> bytes:
@@ -32,7 +51,7 @@ def build() -> bytes:
     w32(canary_addr, canary)
 
     a = frame_start
-    for addr, val in WRITES:
+    for addr, val in _get_writes():
         w32(a + get('payload_frames.frame_field_offsets.r0'), canary_addr)
         w32(a + get('payload_frames.frame_field_offsets.r1'), 0x00000000)
         w32(a + get('payload_frames.frame_field_offsets.r2'), val)

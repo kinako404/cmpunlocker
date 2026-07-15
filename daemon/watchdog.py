@@ -7,6 +7,7 @@ sys.path.insert(0, "/opt/cmpunlocker")
 from payload.gpu import find_all_gpus
 from payload.pipeline import run_full_unlock
 from unlock.compute import apply_unlock, is_plm_open, is_unlocked
+from unlock.vram import apply_vram_unlock, is_vram_unlocked
 
 CHECK_INTERVAL = 1  # seconds
 
@@ -27,18 +28,30 @@ def _unlock_card(pci: str) -> None:
 
 def _check_card(pci: str) -> None:
     try:
-        if is_unlocked(pci):
-            return
-
-        if is_plm_open(pci):
-            ok, msg = apply_unlock(pci)
-            if ok:
-                log.info("[%s] Reapplied SS0/SS1", pci)
+        # --- Compute unlock (SM speed) ---
+        if not is_unlocked(pci):
+            if is_plm_open(pci):
+                ok, msg = apply_unlock(pci)
+                if ok:
+                    log.info("[%s] Reapplied SS0/SS1", pci)
+                else:
+                    log.warning("[%s] Quick reapply failed: %s", pci, msg)
             else:
-                log.warning("[%s] Quick reapply failed: %s", pci, msg)
-        else:
-            log.warning("[%s] PLM closed — re-running full unlock", pci)
-            _unlock_card(pci)
+                log.warning("[%s] PLM closed — re-running full unlock", pci)
+                _unlock_card(pci)
+                return  # Full unlock already covers VRAM; skip re-check this cycle
+
+        # --- VRAM unlock (HBM2 capacity) ---
+        if not is_vram_unlocked(pci):
+            if is_plm_open(pci):
+                ok, msg = apply_vram_unlock(pci)
+                if ok:
+                    log.info("[%s] VRAM reapplied: %s", pci, msg)
+                else:
+                    log.warning("[%s] VRAM reapply failed: %s", pci, msg)
+            else:
+                log.warning("[%s] PLM closed — re-running full unlock", pci)
+                _unlock_card(pci)
 
     except Exception as exc:
         log.error("[%s] Monitor error: %s", pci, exc)
