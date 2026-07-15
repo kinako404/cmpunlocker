@@ -1,0 +1,37 @@
+dmem_layout:
+  dma_target:    0x0800
+  payload_size:  0xF800
+  guard_addr:    0x6340
+  canary:        0xFACEB13D
+  bar0_mmap_size: 0x1000000
+
+host_bar0_writes:
+  ss0:
+    addr:  0x0082381C
+    value: 0x88888888
+    note: "FEAT_OVR_SM_SPD (all SMs max speed)"
+  ss1:
+    addr:  0x00823820
+    value: 0x00000008
+    note: "FEAT_OVR_SM_SPD_1 (IMLA4 override)"
+
+booter_addrs:
+  bar0_write_gadget: 0x10B9
+
+payload_frames:
+  frame_start_addr: 0xFF48
+  frame_stride: 0x18
+  frame_field_offsets:
+    r0: 0x00
+    r1: 0x04
+    r2: 0x08
+    r3: 0x0C
+    saved_reg: 0x10
+    return_addr: 0x14
+
+gpu:
+  device_ids: ["20b0", "20c2", "2082"]
+
+elf:
+  header_magic: 0x7F454C46
+  signature_section: ".fwsignature_ga100"
